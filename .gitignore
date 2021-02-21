@@ -1,0 +1,9 @@
+*.log
+*.tar
+*.tar.gz
+*.tar.bz2
+.idea
+release/*
+conf.yml
+build/
+/svc

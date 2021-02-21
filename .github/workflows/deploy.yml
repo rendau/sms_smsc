@@ -1,0 +1,27 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    env:
+      OWNER: rendau
+      IMAGE: sms
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Docker login
+        run: |
+          echo ${{ secrets.CR_PAT }} | docker login -u $OWNER --password-stdin ghcr.io
+
+      - name: Docker build
+        run: |
+          docker build -t ghcr.io/$OWNER/$IMAGE:latest .
+
+      - name: Docker push
+        run: |
+          docker push ghcr.io/$OWNER/$IMAGE:latest
