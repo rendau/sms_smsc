@@ -2,26 +2,31 @@ name: Deploy
 on:
   push:
     branches:
-      - main
+      - master
 jobs:
   build:
     name: Build and deploy
     runs-on: ubuntu-latest
     env:
       OWNER: rendau
-      IMAGE: sms
+      IMAGE: sms_smsc
     steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - name: Docker login
-        run: |
-          echo ${{ secrets.CR_PAT }} | docker login -u $OWNER --password-stdin ghcr.io
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.18.0'
 
-      - name: Docker build
-        run: |
-          docker build -t ghcr.io/$OWNER/$IMAGE:latest .
+      - run: go mod download
 
-      - name: Docker push
-        run: |
-          docker push ghcr.io/$OWNER/$IMAGE:latest
+      - run: go install github.com/swaggo/swag/cmd/swag@latest
+
+      - run: make swdoc
+
+      - run: make
+
+      - run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $ --password-stdin
+
+      - run: docker build -t ghcr.io/$OWNER/$IMAGE:latest .
+
+      - run: docker push ghcr.io/$OWNER/$IMAGE:latest

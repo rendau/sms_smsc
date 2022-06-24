@@ -1,27 +1,21 @@
 package core
 
 import (
-	"github.com/rendau/sms/internal/interfaces"
+	"github.com/rendau/dop/adapters/cache"
+	"github.com/rendau/dop/adapters/client/httpc"
+	"github.com/rendau/dop/adapters/logger"
 )
 
 type St struct {
-	lg               interfaces.Logger
-	cache            interfaces.Cache
-	smscUsername     string
-	smscPassword     string
-	smscSender       string
-	balanceNotifUrls map[float64]string
+	lg    logger.Lite
+	cache cache.Cache
+	httpc httpc.HttpC
 }
 
-func New(lg interfaces.Logger, cache interfaces.Cache, smscUsername string, smscPassword string, smscSender string, array map[float64]string) *St {
-	core := &St{
-		lg:               lg,
-		cache:            cache,
-		smscUsername:     smscUsername,
-		smscPassword:     smscPassword,
-		smscSender:       smscSender,
-		balanceNotifUrls: array,
+func New(lg logger.Lite, cache cache.Cache, httpc httpc.HttpC) *St {
+	return &St{
+		lg:    lg,
+		cache: cache,
+		httpc: httpc,
 	}
-
-	return core
 }

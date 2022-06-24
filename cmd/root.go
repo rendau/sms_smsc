@@ -1,146 +1,96 @@
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"log"
+	"crypto/tls"
+	"net/http"
 	"os"
-	"os/signal"
-	"strconv"
-	"strings"
-	"syscall"
 	"time"
 
-	memCache "github.com/rendau/sms/internal/adapters/cache/mem"
-	"github.com/rendau/sms/internal/adapters/cache/redis"
-	"github.com/rendau/sms/internal/adapters/httpapi"
-	"github.com/rendau/sms/internal/adapters/logger/zap"
-	"github.com/rendau/sms/internal/domain/core"
-	"github.com/rendau/sms/internal/interfaces"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	dopCache "github.com/rendau/dop/adapters/cache"
+	dopCacheMem "github.com/rendau/dop/adapters/cache/mem"
+	dopCacheRedis "github.com/rendau/dop/adapters/cache/redis"
+	"github.com/rendau/dop/adapters/client/httpc"
+	"github.com/rendau/dop/adapters/client/httpc/httpclient"
+	dopLoggerZap "github.com/rendau/dop/adapters/logger/zap"
+	dopServerHttps "github.com/rendau/dop/adapters/server/https"
+	"github.com/rendau/dop/dopTools"
+	"github.com/rendau/sms_smsc/internal/adapters/server/rest"
+	"github.com/rendau/sms_smsc/internal/domain/core"
 )
 
-var rootCmd = &cobra.Command{
-	Use: "sms",
-	Run: func(cmd *cobra.Command, args []string) {
-		var err error
-
-		loadConf()
-
-		app := struct {
-			log     *zap.St
-			core    *core.St
-			restApi *httpapi.St
-			cache   interfaces.Cache
-		}{}
-
-		app.log, err = zap.New(viper.GetString("log_level"), viper.GetBool("debug"), false)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if viper.GetString("redis.url") == "" {
-			app.cache = memCache.New()
-		} else {
-			app.cache = redis.New(
-				app.log,
-				viper.GetString("redis.url"),
-				viper.GetString("redis.psw"),
-				viper.GetInt("redis.db"),
-			)
-		}
-
-		balanceNotifyPars := viper.Get("balance_notify").(map[float64]string)
-
-		app.core = core.New(
-			app.log,
-			app.cache,
-			viper.GetString("smsc_username"),
-			viper.GetString("smsc_password"),
-			viper.GetString("smsc_sender"),
-			balanceNotifyPars,
-		)
-
-		app.restApi = httpapi.New(app.log, viper.GetString("http_listen"), app.core)
-
-		app.log.Infow(
-			"Starting",
-			"http_listen", viper.GetString("http_listen"),
-		)
-
-		for b, url := range balanceNotifyPars {
-			app.log.Infow(
-				"Balance alarm parameter",
-				"balance", b,
-				"url", url,
-			)
-		}
-
-		app.restApi.Start()
-
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-
-		var exitCode int
-
-		select {
-		case <-stop:
-		case <-app.restApi.Wait():
-			exitCode = 1
-		}
-
-		app.log.Infow("Shutting down...")
-
-		ctx, ctxCancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer ctxCancel()
-
-		err = app.restApi.Shutdown(ctx)
-		if err != nil {
-			app.log.Errorw("Fail to shutdown http-api", err)
-			exitCode = 1
-		}
-
-		os.Exit(exitCode)
-	},
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
+	app := struct {
+		lg         *dopLoggerZap.St
+		cache      dopCache.Cache
+		core       *core.St
+		restApiSrv *dopServerHttps.St
+	}{}
 
-func loadConf() {
-	viper.SetDefault("debug", "false")
-	viper.SetDefault("http_listen", ":80")
-	viper.SetDefault("log_level", "debug")
+	confLoad()
 
-	confFilePath := os.Getenv("CONF_PATH")
-	if confFilePath == "" {
-		confFilePath = "conf.yml"
-	}
-	viper.SetConfigFile(confFilePath)
-	_ = viper.ReadInConfig()
+	app.lg = dopLoggerZap.New(conf.LogLevel, conf.Debug)
 
-	viper.AutomaticEnv()
-
-	blnNotify := map[float64]string{}
-
-	const bnEnvPrefix = "BALANCE_NOTIFY_"
-
-	for _, element := range os.Environ() {
-		pair := strings.SplitN(element, "=", 2)
-		if len(pair) == 2 && strings.HasPrefix(pair[0], bnEnvPrefix) {
-			key := strings.TrimPrefix(pair[0], bnEnvPrefix)
-			if n, _ := strconv.ParseFloat(key, 64); n > 0 {
-				blnNotify[n] = pair[1]
-			}
-		}
+	if conf.RedisUrl == "" {
+		app.cache = dopCacheMem.New()
+	} else {
+		app.cache = dopCacheRedis.New(
+			app.lg,
+			conf.RedisUrl,
+			conf.RedisPsw,
+			conf.RedisDb,
+			conf.RedisKeyPrefix,
+		)
 	}
 
-	viper.Set("balance_notify", blnNotify)
+	app.core = core.New(
+		app.lg,
+		app.cache,
+		httpclient.New(app.lg, httpc.OptionsSt{
+			Client: &http.Client{
+				Timeout: 15 * time.Second,
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			},
+			BaseUrl: "https://smsc.kz/sys",
+			BaseParams: map[string][]string{
+				"login": {conf.SmscUsername},
+				"psw":   {conf.SmscPassword},
+			},
+		}),
+	)
+
+	// START
+
+	app.lg.Infow("Starting")
+
+	app.restApiSrv = dopServerHttps.Start(
+		conf.HttpListen,
+		rest.GetHandler(
+			app.lg,
+			app.core,
+			conf.HttpCors,
+		),
+		app.lg,
+	)
+
+	var exitCode int
+
+	select {
+	case <-dopTools.StopSignal():
+	case <-app.restApiSrv.Wait():
+		exitCode = 1
+	}
+
+	// STOP
+
+	app.lg.Infow("Shutting down...")
+
+	if !app.restApiSrv.Shutdown(20 * time.Second) {
+		exitCode = 1
+	}
+
+	app.lg.Infow("Exit")
+
+	os.Exit(exitCode)
 }

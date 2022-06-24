@@ -1,7 +1,7 @@
-package entities
+package types
 
 type SendReqSt struct {
-	Phones  string `schema:"phones"`
+	Phone   string `schema:"phone"`
 	Message string `schema:"message"`
 	Sync    bool   `schema:"sync"`
 }
@@ -15,13 +15,4 @@ type SendRepSt struct {
 type SmscErrSt struct {
 	ErrorCode int    `json:"error_code"`
 	Error     string `json:"error"`
-}
-
-type GetBalanceRepSt struct {
-	Balance string `json:"balance"`
-	SmscErrSt
-}
-
-type BalanceCacheSt struct {
-	Balance float64 `json:"balance"`
 }
