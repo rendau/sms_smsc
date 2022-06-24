@@ -1,0 +1,44 @@
+definitions:
+  dopTypes.ErrRep:
+    properties:
+      desc:
+        type: string
+      error_code:
+        type: string
+      fields:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  types.SendReqSt:
+    properties:
+      message:
+        type: string
+      phone:
+        type: string
+      sync:
+        type: boolean
+    type: object
+info:
+  contact: {}
+paths:
+  /send:
+    post:
+      parameters:
+      - description: body
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/types.SendReqSt'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dopTypes.ErrRep'
+      tags:
+      - general
+swagger: "2.0"

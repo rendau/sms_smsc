@@ -8,7 +8,7 @@ import (
 
 // @Router   /send [post]
 // @Tags     general
-// @Param    body    body  types.SendReqSt  false  "body"
+// @Param    body  body  types.SendReqSt  false  "body"
 // @Produce  json
 // @Success  200
 // @Failure  400  {object}  dopTypes.ErrRep
