@@ -49,12 +49,12 @@ func (c *St) Send(pars *types.SendReqSt) error {
 
 func (c *St) validateValues(pars *types.SendReqSt) error {
 	if len(pars.To) == 0 {
-		c.lg.Warnw("To is empty", errs.PhonesRequired)
+		c.lg.Warnw("To is empty", "error", errs.PhonesRequired)
 		return errs.PhonesRequired
 	}
 
 	if len(pars.Message) == 0 {
-		c.lg.Warnw("Message is empty", errs.MessageRequired)
+		c.lg.Warnw("Message is empty", "error", errs.MessageRequired)
 		return errs.MessageRequired
 	}
 

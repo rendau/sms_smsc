@@ -1,9 +1,9 @@
 package types
 
 type SendReqSt struct {
-	To      string `schema:"to"`
-	Message string `schema:"text"`
-	Sync    bool   `schema:"sync"`
+	To      string `json:"to"`
+	Message string `json:"text"`
+	Sync    bool   `json:"sync"`
 }
 
 type SendRepSt struct {
