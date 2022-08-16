@@ -23,7 +23,7 @@ func (c *St) Send(pars *types.SendReqSt) error {
 		Method: "GET",
 		Path:   "send.php",
 		Params: url.Values{
-			"phones":  {pars.Phone},
+			"phones":  {pars.To},
 			"mes":     {pars.Message},
 			"charset": {"utf-8"},
 			"fmt":     {"3"},
@@ -38,7 +38,7 @@ func (c *St) Send(pars *types.SendReqSt) error {
 			"Bad response smsc.kz", nil,
 			"error_code", repObj.ErrorCode,
 			"error", repObj.Error,
-			"phone", pars.Phone,
+			"phone", pars.To,
 			"rep_body", string(repData),
 		)
 		return dopErrs.ServiceNA
@@ -48,8 +48,8 @@ func (c *St) Send(pars *types.SendReqSt) error {
 }
 
 func (c *St) validateValues(pars *types.SendReqSt) error {
-	if len(pars.Phone) == 0 {
-		c.lg.Warnw("Phone is empty", errs.PhonesRequired)
+	if len(pars.To) == 0 {
+		c.lg.Warnw("To is empty", errs.PhonesRequired)
 		return errs.PhonesRequired
 	}
 

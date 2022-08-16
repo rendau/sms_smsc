@@ -1,8 +1,8 @@
 package types
 
 type SendReqSt struct {
-	Phone   string `schema:"phone"`
-	Message string `schema:"message"`
+	To      string `schema:"to"`
+	Message string `schema:"text"`
 	Sync    bool   `schema:"sync"`
 }
 
